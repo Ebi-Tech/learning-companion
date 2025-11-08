@@ -38,7 +38,7 @@ export default function ShareView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-linear-to-br from-indigo-50 to-purple-100 flex items-center justify-center p-6">
         <p className="text-gray-700">Loading shared progress...</p>
       </div>
     );
@@ -46,7 +46,7 @@ export default function ShareView() {
 
   if (error || tasks.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-linear-to-br from-indigo-50 to-purple-100 flex items-center justify-center p-6">
         <div className="bg-white p-8 rounded-xl shadow-lg text-center max-w-md">
           <p className="text-red-600 font-medium">{error || 'No tasks to display yet.'}</p>
           <p className="text-sm text-gray-600 mt-2">
@@ -100,7 +100,7 @@ export default function ShareView() {
   const rate = total > 0 ? Math.round((done / total) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 p-6">
+    <div className="min-h-screen bg-linear-to-br from-indigo-50 to-purple-100 p-6">
       <div className="max-w-3xl mx-auto">
         <h1 className="text-3xl font-bold text-center text-indigo-800 mb-2">
           My Learning Progress
@@ -108,7 +108,7 @@ export default function ShareView() {
         <p className="text-center text-gray-600 mb-8">Shared by your child</p>
 
         {/* Streak */}
-        <div className="bg-gradient-to-r from-orange-400 to-pink-500 rounded-xl p-6 mb-8 text-white shadow-lg">
+        <div className="bg-linear-to-r from-orange-400 to-pink-500 rounded-xl p-6 mb-8 text-white shadow-lg">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm opacity-90">Current Streak</p>

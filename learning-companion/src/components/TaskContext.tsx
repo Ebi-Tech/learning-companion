@@ -3,13 +3,13 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Task } from '@/types/task';
-import { getTasks, saveTasks } from '@/utils/storage';
+import { supabase } from '@/lib/supabaseClient';
 
 interface TaskContextType {
   tasks: Task[];
-  addTask: (title: string, type: 'daily' | 'weekly') => void;
-  toggleComplete: (id: string) => void;
-  deleteTask: (id: string) => void;
+  addTask: (title: string, type: 'daily' | 'weekly') => Promise<void>;
+  toggleComplete: (id: string) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
   downloadBackup: () => void;
   uploadBackup: (file: File) => Promise<void>;
 }
@@ -23,57 +23,108 @@ export function TaskProvider({
   children: ReactNode;
   currentUser: string;
 }) {
-  const [tasks, setTasks] = useState<Task[]>([]); // Always start as []
+  const [tasks, setTasks] = useState<Task[]>([]);
 
+  // LOAD + REALTIME SYNC
   useEffect(() => {
     if (!currentUser) {
       setTasks([]);
       return;
     }
 
-    try {
-      const loaded = getTasks(currentUser);
-      setTasks(Array.isArray(loaded) ? loaded : []);
-    } catch (err) {
-      console.error('Failed to load tasks:', err);
-      setTasks([]);
-    }
+    const fetchTasks = async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', currentUser)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Initial load error:', error);
+        return;
+      }
+      setTasks(data || []);
+    };
+
+    fetchTasks();
+
+    const channel = supabase
+      .channel(`tasks:user:${currentUser}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+          filter: `user_id=eq.${currentUser}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setTasks(prev => [payload.new as Task, ...prev]);
+          }
+          if (payload.eventType === 'UPDATE') {
+            setTasks(prev =>
+              prev.map(t => (t.id === payload.new.id ? (payload.new as Task) : t))
+            );
+          }
+          if (payload.eventType === 'DELETE') {
+            setTasks(prev => prev.filter(t => t.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentUser]);
 
-  useEffect(() => {
-    if (!currentUser || !Array.isArray(tasks)) return;
-    try {
-      saveTasks(currentUser, tasks);
-    } catch (err) {
-      console.error('Failed to save tasks:', err);
+  const addTask = async (title: string, type: 'daily' | 'weekly') => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return;
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert({
+        user_id: currentUser,
+        title: trimmedTitle,
+        type,
+        completed: false,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Add task error:', error);
+      alert('Failed to add task');
+      return;
     }
-  }, [tasks, currentUser]);
 
-  const addTask = (title: string, type: 'daily' | 'weekly') => {
-    const newTask: Task = {
-      id: Date.now().toString(),
-      title: title.trim(),
-      type,
-      completed: false,
-    };
-    setTasks(prev => [...prev, newTask]);
+    // Realtime will add it — no need to setTasks
   };
 
-  const toggleComplete = (id: string) => {
-    setTasks(prev => prev.map(task => {
-      if (task.id === id) {
-        return {
-          ...task,
-          completed: !task.completed,
-          completedAt: !task.completed ? new Date().toISOString() : undefined
-        };
-      }
-      return task;
-    }));
+  const toggleComplete = async (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+
+    const completed = !task.completed;
+    const completed_at = completed ? new Date().toISOString() : null;
+
+    const { error } = await supabase
+      .from('tasks')
+      .update({ completed, completed_at })
+      .eq('id', id);
+
+    if (error) console.error('Toggle error:', error);
   };
 
-  const deleteTask = (id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
+  const deleteTask = async (id: string) => {
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', id);
+
+    if (error) console.error('Delete error:', error);
   };
 
   const downloadBackup = () => {
@@ -90,17 +141,25 @@ export function TaskProvider({
   const uploadBackup = async (file: File): Promise<void> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const text = e.target?.result as string;
-          const parsed = JSON.parse(text);
-          if (Array.isArray(parsed)) {
-            setTasks(parsed);
-            resolve();
-          } else {
-            reject(new Error('Invalid backup: not an array'));
-          }
-        } catch (err) {
+          const parsed: Task[] = JSON.parse(text);
+          if (!Array.isArray(parsed)) throw new Error('Invalid backup');
+
+          const { error } = await supabase
+            .from('tasks')
+            .upsert(
+              parsed.map(task => ({
+                ...task,
+                user_id: currentUser,
+              })),
+              { onConflict: 'id' }
+            );
+
+          if (error) throw error;
+          resolve();
+        } catch (err: any) {
           reject(err);
         }
       };
@@ -111,8 +170,12 @@ export function TaskProvider({
 
   return (
     <TaskContext.Provider value={{ 
-      tasks, addTask, toggleComplete, deleteTask, 
-      downloadBackup, uploadBackup 
+      tasks, 
+      addTask, 
+      toggleComplete, 
+      deleteTask, 
+      downloadBackup, 
+      uploadBackup 
     }}>
       {children}
     </TaskContext.Provider>

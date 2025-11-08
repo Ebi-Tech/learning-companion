@@ -60,8 +60,8 @@ export default function ShareView() {
   // === STREAK ===
   const getStreak = () => {
     const dates = tasks
-      .filter(t => t.completed && t.completedAt)
-      .map(t => new Date(t.completedAt!).toDateString());
+      .filter(t => t.completed && t.completed_at)
+      .map(t => new Date(t.completed_at!).toDateString());
     const unique = Array.from(new Set(dates)).sort().reverse();
     if (!unique.length) return 0;
 
@@ -88,7 +88,7 @@ export default function ShareView() {
       const date = startOfDay(subDays(new Date(), i));
       const dateStr = date.toDateString();
       const count = tasks.filter(t => 
-        t.completedAt && new Date(t.completedAt).toDateString() === dateStr
+        t.completed_at && new Date(t.completed_at).toDateString() === dateStr
       ).length;
       data.push({ day: format(date, 'EEE'), completions: count });
     }

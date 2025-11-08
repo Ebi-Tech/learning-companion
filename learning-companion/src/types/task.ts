@@ -1,10 +1,10 @@
 // src/types/task.ts
 export interface Task {
   id: string;
+  user_id?: string;
   title: string;
   type: 'daily' | 'weekly';
-  notes?: string;
-  dueDate?: string; // ISO string: "2025-11-05"
   completed: boolean;
-  completedAt?: string; // ISO timestamp when marked done
+  completed_at?: string | null;
+  created_at?: string;
 }

@@ -13,7 +13,7 @@ export default function Login({ onLogin }: { onLogin: (email: string) => void })
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-100 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-indigo-50 to-purple-100 p-4">
       <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-8">
         <h1 className="text-3xl font-bold text-center text-indigo-800 mb-2">
           Learning Companion

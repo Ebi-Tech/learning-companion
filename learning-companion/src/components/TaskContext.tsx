@@ -25,60 +25,78 @@ export function TaskProvider({
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  // LOAD + REALTIME SYNC
+  // LOAD + REALTIME SYNC (OPTIMIZED)
   useEffect(() => {
     if (!currentUser) {
       setTasks([]);
       return;
     }
 
-    const fetchTasks = async () => {
+    let isMounted = true;
+    let channel: any = null;
+
+    const setupRealtime = async () => {
+      // 1. Load initial tasks
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
         .eq('user_id', currentUser)
         .order('created_at', { ascending: false });
 
+      if (!isMounted) return;
       if (error) {
-        console.error('Initial load error:', error);
+        console.error('Failed to load tasks:', error);
         return;
       }
       setTasks(data || []);
+
+      // 2. Subscribe to Realtime
+      channel = supabase
+        .channel(`tasks:${currentUser}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'tasks',
+            filter: `user_id=eq.${currentUser}`,
+          },
+          (payload) => {
+            if (!isMounted) return;
+
+            const newTask = payload.new as Task;
+            const oldId = (payload.old as { id: string })?.id;
+
+            if (payload.eventType === 'INSERT') {
+              setTasks(prev => [newTask, ...prev]);
+            }
+            if (payload.eventType === 'UPDATE') {
+              setTasks(prev =>
+                prev.map(t => (t.id === newTask.id ? newTask : t))
+              );
+            }
+            if (payload.eventType === 'DELETE') {
+              setTasks(prev => prev.filter(t => t.id !== oldId));
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('Realtime status:', status); // Should log "SUBSCRIBED"
+        });
     };
 
-    fetchTasks();
+    setupRealtime();
 
-    const channel = supabase
-      .channel(`tasks:user:${currentUser}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tasks',
-          filter: `user_id=eq.${currentUser}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setTasks(prev => [payload.new as Task, ...prev]);
-          }
-          if (payload.eventType === 'UPDATE') {
-            setTasks(prev =>
-              prev.map(t => (t.id === payload.new.id ? (payload.new as Task) : t))
-            );
-          }
-          if (payload.eventType === 'DELETE') {
-            setTasks(prev => prev.filter(t => t.id !== payload.old.id));
-          }
-        }
-      )
-      .subscribe();
-
+    // Cleanup
     return () => {
-      supabase.removeChannel(channel);
+      isMounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [currentUser]);
 
+  // ADD TASK
   const addTask = async (title: string, type: 'daily' | 'weekly') => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) return;
@@ -96,13 +114,15 @@ export function TaskProvider({
 
     if (error) {
       console.error('Add task error:', error);
-      alert('Failed to add task');
+      alert('Failed to add task: ' + error.message);
       return;
     }
 
-    // Realtime will add it — no need to setTasks
+    // UI updates immediately
+    setTasks(prev => [data, ...prev]);
   };
 
+  // TOGGLE COMPLETE
   const toggleComplete = async (id: string) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
@@ -115,18 +135,40 @@ export function TaskProvider({
       .update({ completed, completed_at })
       .eq('id', id);
 
-    if (error) console.error('Toggle error:', error);
+    if (error) {
+      console.error('Toggle error:', error);
+      alert('Failed to update task');
+      return;
+    }
+
+    // UI updates immediately
+    setTasks(prev =>
+      prev.map(t =>
+        t.id === id
+          ? { ...t, completed, completed_at }
+          : t
+      )
+    );
   };
 
+  // DELETE TASK
   const deleteTask = async (id: string) => {
     const { error } = await supabase
       .from('tasks')
       .delete()
       .eq('id', id);
 
-    if (error) console.error('Delete error:', error);
+    if (error) {
+      console.error('Delete error:', error);
+      alert('Failed to delete task');
+      return;
+    }
+
+    // UI updates immediately
+    setTasks(prev => prev.filter(t => t.id !== id));
   };
 
+  // DOWNLOAD BACKUP
   const downloadBackup = () => {
     const dataStr = JSON.stringify(tasks, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
@@ -138,6 +180,7 @@ export function TaskProvider({
     URL.revokeObjectURL(url);
   };
 
+  // UPLOAD BACKUP
   const uploadBackup = async (file: File): Promise<void> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -145,7 +188,7 @@ export function TaskProvider({
         try {
           const text = e.target?.result as string;
           const parsed: Task[] = JSON.parse(text);
-          if (!Array.isArray(parsed)) throw new Error('Invalid backup');
+          if (!Array.isArray(parsed)) throw new Error('Invalid backup format');
 
           const { error } = await supabase
             .from('tasks')
@@ -160,6 +203,8 @@ export function TaskProvider({
           if (error) throw error;
           resolve();
         } catch (err: any) {
+          console.error('Upload backup error:', err);
+          alert('Failed to restore: ' + err.message);
           reject(err);
         }
       };

@@ -28,7 +28,7 @@ export default function Dashboard() {
       const date = startOfDay(subDays(new Date(), i));
       const dateStr = date.toDateString();
       const count = tasks.filter(t => 
-        t.completedAt && new Date(t.completedAt).toDateString() === dateStr
+        t.completed_at && new Date(t.completed_at).toDateString() === dateStr
       ).length;
 
       data.push({

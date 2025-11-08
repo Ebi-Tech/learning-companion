@@ -48,8 +48,8 @@ export default function TaskManager() {
 
   const getStreak = (): number => {
     const dates = tasks
-      .filter((t) => t.completed && t.completedAt)
-      .map((t) => new Date(t.completedAt!).toDateString());
+      .filter((t) => t.completed && t.completed_at)
+      .map((t) => new Date(t.completed_at!).toDateString());
 
     const unique = Array.from(new Set(dates)).sort().reverse();
     if (!unique.length) return 0;
@@ -74,7 +74,7 @@ export default function TaskManager() {
   return (
     <div className="w-full max-w-2xl mx-auto p-6">
       {/* Streak */}
-      <div className="bg-gradient-to-r from-orange-400 to-pink-500 rounded-xl p-6 mb-8 text-white shadow-lg">
+      <div className="bg-linear-to-r from-orange-400 to-pink-500 rounded-xl p-6 mb-8 text-white shadow-lg">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm opacity-90">Current Streak</p>

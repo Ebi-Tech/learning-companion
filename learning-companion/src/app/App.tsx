@@ -6,7 +6,7 @@ import { LogOut } from 'lucide-react';
 import TaskManager from '@/components/TaskManager';
 import Dashboard from '@/components/Dashboard';
 import { useState } from 'react';
-import TestTasks from '@/components/TestTasks';
+
 
 export default function App() {
   const { user, signOut } = useAuth();
@@ -53,7 +53,7 @@ export default function App() {
       <main className="max-w-4xl mx-auto px-6 py-8">
         {activeTab === 'tasks' ? <TaskManager /> : <Dashboard />}
       </main>
-      <TestTasks />
+      
     </div>
   );
 }

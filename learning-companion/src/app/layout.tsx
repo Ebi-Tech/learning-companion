@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { AuthProvider } from '@/context/AuthContext';
 import './globals.css';
 import { ReactNode } from 'react';
+import ServiceWorkerScript from './ServiceWorkerScript';
 
 export const metadata: Metadata = {
   title: 'Learning Companion',
@@ -14,7 +15,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
-        {/* PWA Meta Tags */}
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -23,29 +23,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         <AuthProvider>
-          {/* Service Worker Registration Component */}
-          <ServiceWorkerRegistration />
+          <ServiceWorkerScript />
           {children}
         </AuthProvider>
       </body>
     </html>
-  );
-}
-
-// Separate client component for service worker registration
-function ServiceWorkerRegistration() {
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker
-              .register('/sw.js')
-              .then((reg) => console.log('SW registered:', reg))
-              .catch((err) => console.error('SW failed:', err));
-          }
-        `,
-      }}
-    />
   );
 }

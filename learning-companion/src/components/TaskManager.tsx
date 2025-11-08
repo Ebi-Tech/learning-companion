@@ -1,227 +1,146 @@
 // src/components/TaskManager.tsx
-"use client";
+'use client';
 
-import { useState } from "react";
-import {
-  Plus,
-  Trash2,
-  CheckCircle2,
-  Circle,
-  Download,
-  Upload,
-} from "lucide-react";
-import { useTasks } from "./TaskContext";
+import { useTasks } from './TaskContext';
+import { Plus, Trash2, Circle, CheckCircle2, Calendar, Clock, Download, Upload, Share2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
 export default function TaskManager() {
-  const {
-    tasks,
-    addTask,
-    toggleComplete,
-    deleteTask,
-    downloadBackup,
-    uploadBackup,
-  } = useTasks();
-  const [title, setTitle] = useState("");
-  const [type, setType] = useState<"daily" | "weekly">("daily");
-  const [showUpload, setShowUpload] = useState(false);
-  const [error, setError] = useState("");
+  const { tasks, addTask, toggleComplete, deleteTask, downloadBackup, uploadBackup } = useTasks();
+  const { user } = useAuth();
+  const [title, setTitle] = useState('');
+  const [type, setType] = useState<'daily' | 'weekly'>('daily');
 
-  // NO EARLY RETURN — tasks is guaranteed to be array from context
-
-  const handleAddTask = () => {
-    if (!title.trim()) return;
-    addTask(title, type);
-    setTitle("");
+  const handleAdd = () => {
+    if (title.trim()) {
+      addTask(title, type);
+      setTitle('');
+    }
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleShare = () => {
+    const shareUrl = `${window.location.origin}/share?token=${user?.id}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert('Share link copied! Send to parent.');
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      setError("");
-      await uploadBackup(file);
-      alert("Backup restored!");
-    } catch (err: any) {
-      setError(err.message || "Failed");
-    }
+    if (file) uploadBackup(file);
   };
-
-  const getStreak = (): number => {
-    const dates = tasks
-      .filter((t) => t.completed && t.completed_at)
-      .map((t) => new Date(t.completed_at!).toDateString());
-
-    const unique = Array.from(new Set(dates)).sort().reverse();
-    if (!unique.length) return 0;
-
-    let streak = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    for (let i = 0; i < unique.length; i++) {
-      const date = new Date(unique[i]);
-      date.setHours(0, 0, 0, 0);
-      const expected = new Date(today);
-      expected.setDate(today.getDate() - i);
-      if (date.getTime() === expected.getTime()) streak++;
-      else break;
-    }
-    return streak;
-  };
-
-  const currentStreak = getStreak();
 
   return (
-    <div className="w-full max-w-2xl mx-auto p-6">
-      {/* Streak */}
-      <div className="bg-linear-to-r from-orange-400 to-pink-500 rounded-xl p-6 mb-8 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm opacity-90">Current Streak</p>
-            <p className="text-4xl font-bold">
-              {currentStreak} {currentStreak === 1 ? "day" : "days"}
-            </p>
-          </div>
-          <div className="text-6xl">Fire</div>
-        </div>
-      </div>
-
-      {/* Backup Buttons */}
-      <div className="flex gap-2 mb-6">
+    <div className="space-y-6">
+      {/* ---------- ACTION BUTTONS (moved here) ---------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <button
           onClick={downloadBackup}
-          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+          className="bg-green-600 text-white px-6 py-4 rounded-xl font-medium hover:bg-green-700 transition flex items-center justify-center gap-2"
         >
-          <Download size={18} /> Download Backup
-        </button>
-        <button
-          onClick={() => setShowUpload(!showUpload)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          <Upload size={18} /> Restore Backup
+          <Download size={20} /> Download Backup
         </button>
 
+        <label className="bg-blue-600 text-white px-6 py-4 rounded-xl font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2 cursor-pointer">
+          <Upload size={20} /> Restore Backup
+          <input type="file" accept=".json" onChange={handleFileChange} className="hidden" />
+        </label>
+
         <button
-          onClick={() => {
-            if (!tasks || tasks.length === 0) {
-              alert("No tasks to share yet! Add some first.");
-              return;
-            }
-            const encoded = btoa(JSON.stringify(tasks));
-            const url = `${window.location.origin}/share?data=${encoded}`;
-            navigator.clipboard.writeText(url).then(() => {
-              alert("Share link copied! Send it to your parent.");
-            });
-          }}
-          className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+          onClick={handleShare}
+          className="bg-purple-600 text-white px-6 py-4 rounded-xl font-medium hover:bg-purple-700 transition flex items-center justify-center gap-2"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m9 9a3 3 0 100-6 3 3 0 000 6zm-9-9a3 3 0 110-6 3 3 0 010 6z"
-            />
-          </svg>
-          Share with Parent
+          <Share2 size={20} /> Share with Parent
         </button>
       </div>
 
-      {showUpload && (
-        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-          <input
-            type="file"
-            accept=".json"
-            onChange={handleUpload}
-            className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:bg-indigo-600 file:text-white"
-          />
-          {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-        </div>
-      )}
-
-      {/* Add Task */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div className="flex gap-2">
+      {/* ---------- ADD TASK INPUT ---------- */}
+      <div className="bg-white rounded-2xl shadow-lg p-6">
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
+            placeholder="What do you need to study?"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAddTask()}
-            placeholder="What do you need to study?"
-            className="flex-1 px-4 py-2 border rounded-md focus:ring-2 focus:ring-indigo-500"
+            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800 placeholder-gray-500"
           />
           <select
             value={type}
-            onChange={(e) => setType(e.target.value as "daily" | "weekly")}
-            className="px-3 py-2 border rounded-md"
+            onChange={(e) => setType(e.target.value as 'daily' | 'weekly')}
+            className="px-4 py-3 border border-gray-300 rounded-xl focus:outline-none text-gray-700"
           >
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
           </select>
           <button
-            onClick={handleAddTask}
-            className="bg-indigo-600 text-white p-2 rounded-md hover:bg-indigo-700 flex items-center gap-1"
+            onClick={handleAdd}
+            className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-indigo-700 transition flex items-center justify-center gap-2"
           >
             <Plus size={20} /> Add
           </button>
         </div>
       </div>
 
-      {/* Task List */}
-      <div className="space-y-3">
+      {/* ---------- TASK GALLERY ---------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
         {tasks.length === 0 ? (
-          <p className="text-center text-gray-500 py-8">
-            No tasks yet. Add one to start!
-          </p>
+          <div className="col-span-full text-center py-12">
+            <p className="text-gray-500 text-lg">No tasks yet. Add one to start your streak!</p>
+          </div>
         ) : (
           tasks.map((task) => (
             <div
               key={task.id}
-              className={`bg-white rounded-lg shadow-sm p-4 flex items-center gap-3 hover:shadow-md transition ${
-                task.completed ? "opacity-75" : ""
-              }`}
+              className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 p-5 flex flex-col justify-between"
             >
-              <button onClick={() => toggleComplete(task.id)}>
-                {task.completed ? (
-                  <CheckCircle2 size={24} className="text-green-600" />
-                ) : (
-                  <Circle
-                    size={24}
-                    className="text-gray-400 hover:text-indigo-600"
-                  />
-                )}
-              </button>
-              <div className="flex-1">
-                <h3
-                  className={`font-medium ${
-                    task.completed
-                      ? "line-through text-gray-500"
-                      : "text-gray-800"
-                  }`}
-                >
-                  {task.title}
-                </h3>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    task.type === "daily"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-green-100 text-green-700"
-                  }`}
-                >
+              {/* Header */}
+              <div className="flex justify-between items-start mb-3">
+                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-wider">
                   {task.type}
                 </span>
+                <button
+                  onClick={() => deleteTask(task.id)}
+                  className="text-red-500 hover:text-red-700 transition"
+                >
+                  <Trash2 size={18} />
+                </button>
               </div>
+
+              {/* Title */}
+              <h3 className="font-bold text-lg text-gray-800 mb-3 line-clamp-2">
+                {task.title}
+              </h3>
+
+              {/* Timestamp */}
+              <div className="flex items-center gap-3 text-xs text-gray-500 mb-4">
+                <div className="flex items-center gap-1">
+                  <Calendar size={14} />
+                  <span>{format(new Date(task.created_at!), 'MMM d')}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock size={14} />
+                  <span>{format(new Date(task.created_at!), 'h:mm a')}</span>
+                </div>
+              </div>
+
+              {/* Complete */}
               <button
-                onClick={() => deleteTask(task.id)}
-                className="text-red-500 hover:text-red-700"
+                onClick={() => toggleComplete(task.id)}
+                className="flex items-center gap-2 text-sm font-medium transition mt-auto"
               >
-                <Trash2 size={18} />
+                {task.completed ? (
+                  <>
+                    <CheckCircle2 className="text-green-600" size={22} />
+                    <span className="text-green-600 font-semibold">Done</span>
+                  </>
+                ) : (
+                  <>
+                    <Circle className="text-gray-400" size={22} />
+                    <span className="text-gray-600">Mark Done</span>
+                  </>
+                )}
               </button>
             </div>
           ))

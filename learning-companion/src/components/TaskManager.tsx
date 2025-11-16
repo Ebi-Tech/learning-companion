@@ -6,12 +6,14 @@ import { Plus, Trash2, Circle, CheckCircle2, Calendar, Clock, Download, Upload, 
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function TaskManager() {
   const { tasks, addTask, toggleComplete, deleteTask, downloadBackup, uploadBackup } = useTasks();
   const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'daily' | 'weekly'>('daily');
+  const [generatingShare, setGeneratingShare] = useState(false);
 
   const handleAdd = () => {
     if (title.trim()) {
@@ -20,10 +22,43 @@ export default function TaskManager() {
     }
   };
 
-  const handleShare = () => {
-    const shareUrl = `${window.location.origin}/share?token=${user?.id}`;
-    navigator.clipboard.writeText(shareUrl);
-    alert('Share link copied! Send to parent.');
+  const handleShare = async () => {
+    if (!user) {
+      alert('Please sign in to generate share links');
+      return;
+    }
+
+    setGeneratingShare(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Please sign in to generate share links');
+        return;
+      }
+
+      const response = await fetch('/api/generate-share-token', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate share link');
+      }
+
+      const { shareUrl, message } = await response.json();
+      await navigator.clipboard.writeText(shareUrl);
+      alert(message || 'Share link copied to clipboard! Expires in 30 days.');
+      
+    } catch (error: any) {
+      console.error('Error generating share link:', error);
+      alert(error.message || 'Failed to generate share link');
+    } finally {
+      setGeneratingShare(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,7 +68,7 @@ export default function TaskManager() {
 
   return (
     <div className="space-y-6">
-      {/* ---------- ACTION BUTTONS (moved here) ---------- */}
+      {/* ---------- ACTION BUTTONS ---------- */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <button
           onClick={downloadBackup}
@@ -49,9 +84,19 @@ export default function TaskManager() {
 
         <button
           onClick={handleShare}
-          className="bg-purple-600 text-white px-6 py-4 rounded-xl font-medium hover:bg-purple-700 transition flex items-center justify-center gap-2"
+          disabled={generatingShare}
+          className="bg-purple-600 text-white px-6 py-4 rounded-xl font-medium hover:bg-purple-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Share2 size={20} /> Share with Parent
+          {generatingShare ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              Generating...
+            </>
+          ) : (
+            <>
+              <Share2 size={20} /> Share Progress
+            </>
+          )}
         </button>
       </div>
 

@@ -30,32 +30,48 @@ export default function TaskManager() {
 
     setGeneratingShare(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Get current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        throw new Error('Failed to get user session');
+      }
+
       if (!session) {
         alert('Please sign in to generate share links');
         return;
       }
 
-      const response = await fetch('/api/generate-share-token', {
+      console.log('🔄 Generating share token for user:', user.id);
+      console.log('Access token:', session.access_token.substring(0, 20) + '...');
+
+      // Call the API with access token as query parameter
+      const apiUrl = `/api/generate-share-token?access_token=${encodeURIComponent(session.access_token)}`;
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
       });
 
+      console.log('API Response status:', response.status);
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate share link');
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || `Failed to generate share link: ${response.status}`);
       }
 
       const { shareUrl, message } = await response.json();
+      console.log('✅ Share URL generated:', shareUrl);
+      
       await navigator.clipboard.writeText(shareUrl);
       alert(message || 'Share link copied to clipboard! Expires in 30 days.');
       
     } catch (error: any) {
-      console.error('Error generating share link:', error);
-      alert(error.message || 'Failed to generate share link');
+      console.error('❌ Error generating share link:', error);
+      alert(error.message || 'Failed to generate share link. Please try again.');
     } finally {
       setGeneratingShare(false);
     }

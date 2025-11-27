@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Generate share token
     const shareToken = await generateShareToken(user.id)
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://learning-companion-opal.vercel.app/'
     const shareUrl = `${appUrl}/share?token=${shareToken}`
 
     return NextResponse.json({ 

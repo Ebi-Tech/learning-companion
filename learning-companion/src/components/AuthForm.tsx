@@ -54,7 +54,7 @@ export default function AuthForm() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "http://localhost:3000/update-password",
+        redirectTo: "https://learning-companion-opal.vercel.app/update-password",
       });
 
       if (error) throw error;

@@ -67,6 +67,7 @@ export function TaskProvider({
         console.error('Sync failed:', err);
         return false;
       }
+
     }
     localStorage.removeItem(QUEUE_KEY);
     return true;

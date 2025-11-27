@@ -53,20 +53,14 @@ export default function AuthForm() {
     setMessage("");
 
     try {
-      // Use dynamic redirect URL
-      const redirectUrl = `${window.location.origin}/update-password`;
-      console.log("🔧 Sending redirectTo:", redirectUrl);
-      
+      // Redirect to root - we'll handle the redirect to update-password in the page
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
+        redirectTo: "https://learning-companion-opal.vercel.app/",
       });
 
       if (error) throw error;
-      setMessage(
-        "✅ Password reset email sent! Click the link in your email to set a new password."
-      );
+      setMessage("✅ Password reset email sent! Check your inbox for the reset link.");
     } catch (error: any) {
-      console.error("❌ Password reset error:", error);
       setMessage(error.message);
     } finally {
       setLoading(false);

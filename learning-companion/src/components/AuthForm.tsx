@@ -43,29 +43,29 @@ export default function AuthForm() {
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setMessage("Please enter your email first");
-      return;
-    }
+ // In your handleForgotPassword function
+const handleForgotPassword = async () => {
+  if (!email) {
+    setMessage("Please enter your email first");
+    return;
+  }
 
-    setLoading(true);
-    setMessage("");
+  setLoading(true);
+  setMessage("");
 
-    try {
-      // Redirect to root - we'll handle the redirect to update-password in the page
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "https://learning-companion-opal.vercel.app/",
-      });
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "https://learning-companion-opal.vercel.app/",
+    });
 
-      if (error) throw error;
-      setMessage("✅ Password reset email sent! Check your inbox for the reset link.");
-    } catch (error: any) {
-      setMessage(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (error) throw error;
+    setMessage("✅ Password reset email sent! Check your inbox for the reset link.");
+  } catch (error: any) {
+    setMessage(error.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-linear-to-br from-indigo-50 to-purple-100 flex items-center justify-center p-4">

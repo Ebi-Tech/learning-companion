@@ -17,29 +17,49 @@ export default function Home() {
   useEffect(() => {
     const checkPasswordReset = async () => {
       try {
-        // Get the current URL hash and search parameters
+        console.log('🔍 Checking URL:', window.location.href);
+        console.log('🔍 Hash:', window.location.hash);
+        console.log('🔍 Search:', window.location.search);
+        
+        // Parse both URL search params and hash params
         const urlParams = new URLSearchParams(window.location.search);
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         
-        // Check if this is a password reset flow (has token and type=recovery)
-        const hasResetToken = urlParams.has('token') || hashParams.has('access_token');
-        const isRecoveryType = urlParams.get('type') === 'recovery' || hashParams.get('type') === 'recovery';
+        // Check for reset token in both locations
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const tokenType = hashParams.get('type');
+        
+        console.log('🔍 Access Token:', accessToken);
+        console.log('🔍 Refresh Token:', refreshToken);
+        console.log('🔍 Token Type:', tokenType);
 
-        if (hasResetToken && isRecoveryType) {
-          console.log('🔐 Password reset flow detected');
+        // If we have an access token and it's a recovery type, redirect to update password
+        if (accessToken && tokenType === 'recovery') {
+          console.log('🔐 Password reset flow detected in hash');
           
-          // Get session to verify the user is authenticated
-          const { data: { session } } = await supabase.auth.getSession();
-          
-          if (session) {
-            console.log('✅ User authenticated, redirecting to update password');
-            // User is authenticated via reset token, redirect to update password
-            router.push('/update-password');
-            return;
+          try {
+            // Set the session using the tokens from the hash
+            const { data: { session }, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            });
+
+            if (error) {
+              console.error('❌ Error setting session:', error);
+            } else if (session) {
+              console.log('✅ Session set successfully, redirecting to update password');
+              // Clear the URL hash to prevent re-triggering
+              window.history.replaceState(null, '', window.location.pathname);
+              router.push('/update-password');
+              return;
+            }
+          } catch (sessionError) {
+            console.error('❌ Session error:', sessionError);
           }
         }
       } catch (error) {
-        console.error('Error checking password reset:', error);
+        console.error('❌ Error checking password reset:', error);
       } finally {
         setCheckingReset(false);
       }

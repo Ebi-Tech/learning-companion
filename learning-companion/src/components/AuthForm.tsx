@@ -55,7 +55,7 @@ const handleForgotPassword = async () => {
 
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "https://learning-companion-opal.vercel.app/",
+      redirectTo: "learning-companion-alpha.vercel.app",
     });
 
     if (error) throw error;
